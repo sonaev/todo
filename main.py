@@ -181,7 +181,6 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Todo App with Subtasks", lifespan=lifespan)
 
 # Static files and templates
-app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 # Exception handler для перенаправления неавторизованных пользователей
