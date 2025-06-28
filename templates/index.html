@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en" class="">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo App with Subtasks</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'media'
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <style>
+        .dragging {
+            opacity: 0.5;
+        }
+        .ghost {
+            opacity: 0.3;
+            background-color: #e5e7eb;
+        }
+        .dark .ghost {
+            background-color: #374151;
+        }
+        .subtask-item.sortable-ghost {
+            opacity: 0.3;
+            background-color: #e5e7eb;
+        }
+        .dark .sortable-ghost {
+            background-color: #000000 !important;
+        }
+        
+
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 min-h-screen transition-colors">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">Todo App</h1>
+                    <p class="text-gray-600 dark:text-gray-300">Organize your tasks with draggable subtasks</p>
+                </div>
+                <div>
+                    
+                    <div class="text-right">
+                        <p class="text-sm text-gray-600 dark:text-gray-300 mb-2">Добро пожаловать, {{ current_user.username }}!</p>
+                        <form method="post" action="/logout">
+                            <button type="submit" class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 text-sm flex items-center">
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
+                                </svg>
+                                Выйти
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add New Todo Form -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+            <form hx-post="/todos" hx-target="#todos-container" hx-swap="afterbegin" hx-on::after-request="this.reset(); hideEmptyState(); hideDescriptionField();" class="space-y-4">
+                <!-- Main input row -->
+                <div class="flex space-x-3">
+                    <input type="text" id="title" name="title" placeholder="Добавить задачу..." required 
+                           class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <button type="submit" 
+                            class="bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700 transition duration-200 flex items-center justify-center">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                        </svg>
+                    </button>
+                </div>
+                
+                <!-- Toggle description link -->
+                <div>
+                    <button type="button" onclick="toggleDescriptionField()" 
+                            class="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 underline">
+                        добавить описание
+                    </button>
+                </div>
+                
+                <!-- Description field (hidden by default) -->
+                <div id="description-field" style="display: none;">
+                    <textarea id="description" name="description" placeholder="Описание задачи..." rows="2" 
+                              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
+                </div>
+            </form>
+        </div>
+
+        <!-- Todos List -->
+        <div id="todos-container" class="space-y-4">
+            {% if not todos_with_subtasks %}
+            <div id="empty-state" class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center">
+                <div class="text-gray-400 dark:text-gray-500 mb-4">
+                    <svg class="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-600 dark:text-gray-300 mb-2">No todos yet!</h3>
+                <p class="text-gray-500 dark:text-gray-400">Create your first todo using the form above.</p>
+            </div>
+            {% endif %}
+            
+            {% for item in todos_with_subtasks %}
+            <div class="todo-item bg-white dark:bg-gray-800 rounded-lg shadow-md" data-todo-id="{{ item.todo.id }}">
+                <!-- Todo Header -->
+                <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-start space-x-3 flex-1">
+                            <!-- Drag Handle -->
+                            <div class="drag-handle cursor-move pt-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"></path>
+                                </svg>
+                            </div>
+                            
+                            <!-- Checkbox -->
+                            <form hx-post="/todos/{{ item.todo.id }}/toggle" hx-target="[data-todo-id='{{ item.todo.id }}']" hx-swap="outerHTML" class="pt-1">
+                                <button type="submit" class="focus:outline-none">
+                                    {% if item.todo.completed %}
+                                    <svg class="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                    </svg>
+                                    {% else %}
+                                    <svg class="w-5 h-5 text-gray-400 hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <circle cx="12" cy="12" r="10" stroke-width="2"></circle>
+                                    </svg>
+                                    {% endif %}
+                                </button>
+                            </form>
+                            
+                            <!-- Todo Content -->
+                            <div class="flex-1">
+                                <h3 class="text-lg font-semibold {{ 'line-through text-gray-500 dark:text-gray-400' if item.todo.completed else 'text-gray-900 dark:text-gray-100' }}">
+                                    {{ item.todo.title }}
+                                </h3>
+                                {% if item.todo.description %}
+                                <p class="text-gray-600 dark:text-gray-300 mt-1">{{ item.todo.description }}</p>
+                                {% endif %}
+                                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                                    Created: {{ item.todo.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <!-- Delete Button -->
+                        <form hx-post="/todos/{{ item.todo.id }}/delete" hx-target="[data-todo-id='{{ item.todo.id }}']" hx-swap="outerHTML" hx-confirm="Are you sure you want to delete this todo and all its subtasks?">
+                            <button type="submit" class="text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 p-1">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                </svg>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Subtasks Section -->
+                <div class="p-6">
+                    <!-- Add Subtask Form -->
+                    <form hx-post="/todos/{{ item.todo.id }}/subtasks" hx-target="#subtasks-{{ item.todo.id }}" hx-swap="innerHTML" hx-on::after-request="this.reset()" class="mb-4">
+                        <div class="flex space-x-2">
+                            <input type="text" name="title" placeholder="Add a subtask..." required
+                                   class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <button type="submit" 
+                                    class="bg-gray-600 dark:bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-700 dark:hover:bg-gray-600 transition duration-200">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Subtasks List -->
+                    <div id="subtasks-{{ item.todo.id }}">
+                        {% if item.subtasks %}
+                        <div class="subtasks-container" data-todo-id="{{ item.todo.id }}">
+                            {% for subtask in item.subtasks %}
+                            <div class="subtask-item flex items-center space-x-3 py-2 border-b border-gray-100 dark:border-gray-700 last:border-b-0" data-subtask-id="{{ subtask.id }}">
+                                <!-- Drag Handle -->
+                                <div class="subtask-drag-handle cursor-move text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"></path>
+                                    </svg>
+                                </div>
+                                
+                                <!-- Checkbox -->
+                                <form hx-post="/subtasks/{{ subtask.id }}/toggle" hx-target="#subtasks-{{ item.todo.id }}" hx-swap="innerHTML">
+                                    <button type="submit" class="focus:outline-none">
+                                        {% if subtask.completed %}
+                                        <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                        </svg>
+                                        {% else %}
+                                        <svg class="w-4 h-4 text-gray-400 hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <circle cx="12" cy="12" r="10" stroke-width="2"></circle>
+                                        </svg>
+                                        {% endif %}
+                                    </button>
+                                </form>
+                                
+                                <!-- Subtask Content -->
+                                <span class="flex-1 {{ 'line-through text-gray-500 dark:text-gray-400' if subtask.completed else 'text-gray-700 dark:text-gray-200' }}">
+                                    {{ subtask.title }}
+                                </span>
+                                
+                                <!-- Delete Button -->
+                                <form hx-post="/subtasks/{{ subtask.id }}/delete" hx-target="#subtasks-{{ item.todo.id }}" hx-swap="innerHTML" hx-confirm="Are you sure you want to delete this subtask?">
+                                    <button type="submit" class="text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 p-1">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                    </button>
+                                </form>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="text-gray-500 dark:text-gray-400 text-sm italic">No subtasks yet. Add one above!</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script>
+        // Function to hide empty state when first todo is added
+        function hideEmptyState() {
+            const emptyState = document.getElementById('empty-state');
+            if (emptyState) {
+                emptyState.style.display = 'none';
+            }
+        }
+
+        // Function to show empty state when all todos are deleted
+        function showEmptyStateIfNeeded() {
+            const todosContainer = document.getElementById('todos-container');
+            const todoItems = todosContainer.querySelectorAll('.todo-item');
+            const emptyState = document.getElementById('empty-state');
+            
+            if (todoItems.length === 0 && emptyState) {
+                emptyState.style.display = 'block';
+            }
+        }
+
+        // Function to toggle description field visibility
+        function toggleDescriptionField() {
+            const descriptionField = document.getElementById('description-field');
+            const toggleButton = descriptionField.previousElementSibling.querySelector('button');
+            
+            if (descriptionField.style.display === 'none') {
+                descriptionField.style.display = 'block';
+                toggleButton.textContent = 'скрыть описание';
+                document.getElementById('description').focus();
+            } else {
+                descriptionField.style.display = 'none';
+                toggleButton.textContent = 'добавить описание';
+                document.getElementById('description').value = '';
+            }
+        }
+
+        // Function to hide description field after form submission
+        function hideDescriptionField() {
+            const descriptionField = document.getElementById('description-field');
+            const toggleButton = descriptionField.previousElementSibling.querySelector('button');
+            
+            descriptionField.style.display = 'none';
+            toggleButton.textContent = 'добавить описание';
+        }
+
+        // Make todos sortable
+        const todosContainer = document.getElementById('todos-container');
+        if (todosContainer) {
+            new Sortable(todosContainer, {
+                animation: 150,
+                ghostClass: 'ghost',
+                handle: '.drag-handle',
+                onEnd: function(evt) {
+                    const todoIds = Array.from(todosContainer.children).filter(el => el.classList.contains('todo-item')).map(el => el.dataset.todoId);
+                    fetch('/todos/reorder', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({todo_ids: todoIds})
+                    });
+                }
+            });
+        };
+
+        // Function to initialize subtasks sortable
+        function initSubtasksSortable() {
+            document.querySelectorAll('.subtasks-container').forEach(container => {
+                // Check if sortable is already initialized
+                if (container.sortable) {
+                    container.sortable.destroy();
+                }
+                
+                container.sortable = new Sortable(container, {
+                    animation: 150,
+                    ghostClass: 'sortable-ghost',
+                    handle: '.subtask-drag-handle',
+                    onEnd: function(evt) {
+                        const subtaskIds = Array.from(container.children).map(el => el.dataset.subtaskId);
+                        fetch('/subtasks/reorder', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({subtask_ids: subtaskIds})
+                        });
+                    }
+                });
+            });
+        }
+        
+        // Initialize subtasks sortable on page load
+        initSubtasksSortable();
+
+        // Monitor for todo deletions to show empty state if needed
+        document.addEventListener('htmx:afterRequest', function(event) {
+            if (event.detail.xhr.responseURL && event.detail.xhr.responseURL.includes('/delete')) {
+                setTimeout(showEmptyStateIfNeeded, 100);
+            }
+            // Re-initialize subtasks sortable after HTMX updates subtasks
+            if (event.detail.xhr.responseURL && event.detail.xhr.responseURL.includes('/subtasks')) {
+                setTimeout(initSubtasksSortable, 100);
+            }
+        });
+
+
+
+    </script>
+</body>
+</html>
