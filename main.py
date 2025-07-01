@@ -1,7 +1,6 @@
 from fastapi import FastAPI, Form, Request, HTTPException, Depends, Cookie
 from contextlib import asynccontextmanager
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlmodel import SQLModel, Field, create_engine, Session, select
 from typing import Optional, Annotated
