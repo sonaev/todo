@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ item.todo.title }} - Segmentum</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+</head>
+<body class="h-full bg-neutral-50 dark:bg-neutral-900">
+    <div class="min-h-full">
+        <div class="max-w-4xl mx-auto px-4 py-8">
+            <!-- Header -->
+            <div class="mb-6">
+                <h1 class="text-xl font-bold text-neutral-900 dark:text-neutral-100 mb-2">Segmentum</h1>
+                <p class="text-sm text-neutral-600 dark:text-neutral-400">This is a public view of the task and its progress.</p>
+            </div>
+
+            <!-- Todo Item -->
+            <div class="bg-white dark:bg-neutral-800 rounded-lg shadow-sm border border-neutral-200 dark:border-neutral-700">
+                <!-- Todo Header -->
+                <div class="p-6 border-b border-neutral-200 dark:border-neutral-700">
+                    <div class="flex items-start space-x-3">
+                        <!-- Status Icon -->
+                        <div class="pt-1">
+                            {% if item.todo.completed %}
+                            <svg class="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            {% else %}
+                            <svg class="w-5 h-5 text-neutral-400 dark:text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <circle cx="12" cy="12" r="10" stroke-width="2"></circle>
+                            </svg>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Todo Content -->
+                        <div class="flex-1">
+                            <h3 class="text-lg font-semibold {{ 'line-through text-neutral-500 dark:text-neutral-400' if item.todo.completed else 'text-neutral-900 dark:text-neutral-100' }}">
+                                {{ item.todo.title }}
+                            </h3>
+                            {% if item.todo.description %}
+                            <p class="text-neutral-600 dark:text-neutral-300 mt-1">{{ item.todo.description }}</p>
+                            {% endif %}
+                            <p class="text-xs text-neutral-400 dark:text-neutral-500 mt-1">
+                                Created: {{ item.todo.created_at.strftime('%Y-%m-%d %H:%M') }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+        
+                <!-- Subtasks Section -->
+                <div class="p-6">
+                    <h4 class="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-3">Subtasks</h4>
+                    
+                    {% if item.subtasks %}
+                    <div class="space-y-2">
+                        {% for subtask in item.subtasks %}
+                        <div class="flex items-center space-x-3 p-3 bg-neutral-50 dark:bg-neutral-700 rounded-lg">
+                            <!-- Subtask Status -->
+                            {% if subtask.completed %}
+                            <svg class="w-4 h-4 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            {% else %}
+                            <svg class="w-4 h-4 text-neutral-400 dark:text-neutral-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <circle cx="12" cy="12" r="10" stroke-width="2"></circle>
+                            </svg>
+                            {% endif %}
+                            
+                            <!-- Subtask Title -->
+                            <span class="flex-1 {{ 'line-through text-neutral-500 dark:text-neutral-400' if subtask.completed else 'text-neutral-700 dark:text-neutral-200' }}">
+                                {{ subtask.title }}
+                            </span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-neutral-500 text-sm italic">No subtasks for this task.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+        </div>
+    </div>
+</body>
+</html>

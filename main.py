@@ -643,6 +643,32 @@ async def toggle_subtask(request: Request, subtask_id: str, current_user: Annota
         "item": todo_with_subtasks
     })
 
+@app.get("/todos/{todo_id}/view")
+async def view_todo_public(request: Request, todo_id: str):
+    """Public read-only view of a todo with its subtasks"""
+    async with async_session() as session:
+        # Get todo (no user authentication required for public view)
+        todo = await session.get(Todo, todo_id)
+        if not todo:
+            raise HTTPException(status_code=404, detail="Todo not found")
+        
+        # Get subtasks
+        result = await session.execute(
+            select(Subtask).where(Subtask.todo_id == todo_id).order_by(Subtask.order_index, Subtask.created_at)
+        )
+        subtasks = result.scalars().all()
+        
+        # Create the same structure as in main page
+        todo_with_subtasks = {
+            "todo": todo,
+            "subtasks": subtasks
+        }
+    
+    return templates.TemplateResponse("todo_view_public.html", {
+        "request": request,
+        "item": todo_with_subtasks
+    })
+
 @app.post("/todos/{todo_id}/delete")
 async def delete_todo(request: Request, todo_id: str, current_user: Annotated[User, Depends(require_auth)] = None):
     async with async_session() as session:
