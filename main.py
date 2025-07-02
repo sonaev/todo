@@ -2,7 +2,9 @@ from fastapi import FastAPI, Form, Request, HTTPException, Depends, Cookie
 from contextlib import asynccontextmanager
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlmodel import SQLModel, Field, create_engine, Session, select
+from sqlmodel import SQLModel, Field, select
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
 from typing import Optional, Annotated
 import uuid
 from datetime import datetime, timedelta
@@ -58,11 +60,13 @@ class SubtaskBase(SQLModel):
 class Subtask(SubtaskBase, table=True):
     id: Optional[str] = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
 
-# Database setup
-engine = create_engine("sqlite:///todos.db")
+# Async database setup
+engine = create_async_engine("sqlite+aiosqlite:///todos.db")
+async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
-def create_db_and_tables():
-    SQLModel.metadata.create_all(engine)
+async def create_db_and_tables():
+    async with engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
 
 # Password hashing
 def hash_password(password: str) -> str:
@@ -75,27 +79,28 @@ def verify_password(password: str, hashed: str) -> bool:
 def create_session_token() -> str:
     return secrets.token_urlsafe(32)
 
-def get_current_user(session_token: Annotated[str | None, Cookie()] = None) -> Optional[User]:
+async def get_current_user(session_token: Annotated[str | None, Cookie()] = None) -> Optional[User]:
     if not session_token:
         return None
     
-    with Session(engine) as session:
+    async with async_session() as session:
         # Check if session exists and is valid
-        user_session = session.exec(
+        result = await session.execute(
             select(UserSession).where(
                 UserSession.session_token == session_token,
                 UserSession.expires_at > datetime.now()
             )
-        ).first()
+        )
+        user_session = result.scalar_one_or_none()
         
         if not user_session:
             return None
         
         # Get user
-        user = session.get(User, user_session.user_id)
+        user = await session.get(User, user_session.user_id)
         return user
 
-def require_auth(current_user: Annotated[User | None, Depends(get_current_user)]):
+async def require_auth(current_user: Annotated[User | None, Depends(get_current_user)]):
     if not current_user:
         raise HTTPException(status_code=401, detail="Authentication required")
     return current_user
@@ -172,9 +177,10 @@ def send_password_reset_email(email: str, reset_token: str, request: Request):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    create_db_and_tables()
+    await create_db_and_tables()
     yield
-    # Shutdown (если нужно что-то делать при завершении)
+    # Shutdown
+    await engine.dispose()
 
 # FastAPI app
 app = FastAPI(title="Todo App with Subtasks", lifespan=lifespan)
@@ -204,13 +210,14 @@ async def login_page(request: Request, current_user: Annotated[User | None, Depe
 
 @app.post("/login")
 async def login(request: Request, username: str = Form(...), password: str = Form(...)):
-    with Session(engine) as session:
+    async with async_session() as session:
         # Find user by username or email
-        user = session.exec(
+        result = await session.execute(
             select(User).where(
                 (User.username == username) | (User.email == username)
             )
-        ).first()
+        )
+        user = result.scalar_one_or_none()
         
         if not user or not verify_password(password, user.password_hash):
             return templates.TemplateResponse("auth.html", {
@@ -228,7 +235,7 @@ async def login(request: Request, username: str = Form(...), password: str = For
             expires_at=expires_at
         )
         session.add(user_session)
-        session.commit()
+        await session.commit()
         
         response = RedirectResponse(url="/", status_code=302)
         response.set_cookie(
@@ -242,15 +249,16 @@ async def login(request: Request, username: str = Form(...), password: str = For
 
 @app.get("/reset-password", response_class=HTMLResponse)
 async def reset_password_page(request: Request, token: str):
-    with Session(engine) as session:
+    async with async_session() as session:
         # Проверяем действительность токена
-        password_reset = session.exec(
+        result = await session.execute(
             select(PasswordReset).where(
                 PasswordReset.reset_token == token,
                 PasswordReset.expires_at > datetime.now(),
                 PasswordReset.used == False
             )
-        ).first()
+        )
+        password_reset = result.scalar_one_or_none()
         
         if not password_reset:
             return templates.TemplateResponse("auth.html", {
@@ -259,7 +267,7 @@ async def reset_password_page(request: Request, token: str):
             })
         
         # Получаем пользователя
-        user = session.get(User, password_reset.user_id)
+        user = await session.get(User, password_reset.user_id)
         if not user:
             return templates.TemplateResponse("auth.html", {
                 "request": request,
@@ -288,15 +296,16 @@ async def reset_password(request: Request, token: str = Form(...), password: str
             "error": "Пароль должен содержать минимум 6 символов"
         })
     
-    with Session(engine) as session:
+    async with async_session() as session:
         # Проверяем действительность токена
-        password_reset = session.exec(
+        result = await session.execute(
             select(PasswordReset).where(
                 PasswordReset.reset_token == token,
                 PasswordReset.expires_at > datetime.now(),
                 PasswordReset.used == False
             )
-        ).first()
+        )
+        password_reset = result.scalar_one_or_none()
         
         if not password_reset:
             return templates.TemplateResponse("reset_password.html", {
@@ -306,7 +315,7 @@ async def reset_password(request: Request, token: str = Form(...), password: str
             })
         
         # Получаем пользователя и обновляем пароль
-        user = session.get(User, password_reset.user_id)
+        user = await session.get(User, password_reset.user_id)
         if not user:
             return templates.TemplateResponse("reset_password.html", {
                 "request": request,
@@ -323,13 +332,14 @@ async def reset_password(request: Request, token: str = Form(...), password: str
         session.add(password_reset)
         
         # Удаляем все активные сессии пользователя для безопасности
-        user_sessions = session.exec(
+        result = await session.execute(
             select(UserSession).where(UserSession.user_id == user.id)
-        ).all()
+        )
+        user_sessions = result.scalars().all()
         for user_session in user_sessions:
-            session.delete(user_session)
+            await session.delete(user_session)
         
-        session.commit()
+        await session.commit()
     
     return templates.TemplateResponse("auth.html", {
         "request": request,
@@ -344,13 +354,14 @@ async def register(request: Request, username: str = Form(...), email: str = For
             "error": "Пароли не совпадают"
         })
     
-    with Session(engine) as session:
+    async with async_session() as session:
         # Check if user exists
-        existing_user = session.exec(
+        result = await session.execute(
             select(User).where(
                 (User.username == username) | (User.email == email)
             )
-        ).first()
+        )
+        existing_user = result.scalar_one_or_none()
         
         if existing_user:
             return templates.TemplateResponse("auth.html", {
@@ -365,8 +376,7 @@ async def register(request: Request, username: str = Form(...), email: str = For
             password_hash=hash_password(password)
         )
         session.add(user)
-        session.commit()
-        session.refresh(user)
+        await session.commit()
         
         # Create session
         session_token = create_session_token()
@@ -378,7 +388,7 @@ async def register(request: Request, username: str = Form(...), email: str = For
             expires_at=expires_at
         )
         session.add(user_session)
-        session.commit()
+        await session.commit()
         
         response = RedirectResponse(url="/", status_code=302)
         response.set_cookie(
@@ -393,13 +403,14 @@ async def register(request: Request, username: str = Form(...), email: str = For
 @app.post("/logout")
 async def logout(request: Request, session_token: Annotated[str | None, Cookie()] = None):
     if session_token:
-        with Session(engine) as session:
-            user_session = session.exec(
+        async with async_session() as session:
+            result = await session.execute(
                 select(UserSession).where(UserSession.session_token == session_token)
-            ).first()
+            )
+            user_session = result.scalar_one_or_none()
             if user_session:
-                session.delete(user_session)
-                session.commit()
+                await session.delete(user_session)
+                await session.commit()
     
     response = RedirectResponse(url="/login", status_code=302)
     response.delete_cookie("session_token")
@@ -407,8 +418,9 @@ async def logout(request: Request, session_token: Annotated[str | None, Cookie()
 
 @app.post("/forgot-password")
 async def forgot_password(request: Request, email: str = Form(...)):
-    with Session(engine) as session:
-        user = session.exec(select(User).where(User.email == email)).first()
+    async with async_session() as session:
+        result = await session.execute(select(User).where(User.email == email))
+        user = result.scalar_one_or_none()
         
         if not user:
             return templates.TemplateResponse("auth.html", {
@@ -426,7 +438,7 @@ async def forgot_password(request: Request, email: str = Form(...)):
             expires_at=expires_at
         )
         session.add(password_reset)
-        session.commit()
+        await session.commit()
         
         # Отправляем email с инструкциями
         email_sent = send_password_reset_email(user.email, reset_token, request)
@@ -440,16 +452,18 @@ async def forgot_password(request: Request, email: str = Form(...)):
 # Protected Routes
 @app.get("/", response_class=HTMLResponse)
 async def read_todos(request: Request, current_user: Annotated[User, Depends(require_auth)]):
-    with Session(engine) as session:
-        todos = session.exec(
+    async with async_session() as session:
+        result = await session.execute(
             select(Todo).where(Todo.user_id == current_user.id).order_by(Todo.order_index.asc())
-        ).all()
+        )
+        todos = result.scalars().all()
         todos_with_subtasks = []
         
         for todo in todos:
-            subtasks = session.exec(
+            result = await session.execute(
                 select(Subtask).where(Subtask.todo_id == todo.id).order_by(Subtask.order_index.asc())
-            ).all()
+            )
+            subtasks = result.scalars().all()
             todos_with_subtasks.append({"todo": todo, "subtasks": subtasks})
     
     return templates.TemplateResponse("index.html", {
@@ -460,11 +474,12 @@ async def read_todos(request: Request, current_user: Annotated[User, Depends(req
 
 @app.post("/todos")
 async def create_todo(request: Request, title: str = Form(...), description: str = Form(""), current_user: Annotated[User, Depends(require_auth)] = None):
-    with Session(engine) as session:
+    async with async_session() as session:
         # Increment order_index for all existing todos
-        existing_todos = session.exec(
+        result = await session.execute(
             select(Todo).where(Todo.user_id == current_user.id)
-        ).all()
+        )
+        existing_todos = result.scalars().all()
         for existing_todo in existing_todos:
             existing_todo.order_index += 1
             session.add(existing_todo)
@@ -472,8 +487,8 @@ async def create_todo(request: Request, title: str = Form(...), description: str
         # Create new todo with order_index = 0 (at the top)
         todo = Todo(title=title, description=description, order_index=0, user_id=current_user.id)
         session.add(todo)
-        session.commit()
-        session.refresh(todo)
+        await session.commit()
+        await session.refresh(todo)
         
         # Check if this is an HTMX request
         if request.headers.get("HX-Request"):
@@ -489,18 +504,20 @@ async def create_todo(request: Request, title: str = Form(...), description: str
 
 @app.post("/todos/{todo_id}/subtasks")
 async def create_subtask(request: Request, todo_id: str, title: str = Form(...), current_user: Annotated[User, Depends(require_auth)] = None):
-    with Session(engine) as session:
+    async with async_session() as session:
         # Check if todo exists and belongs to user
-        todo = session.exec(
+        result = await session.execute(
             select(Todo).where(Todo.id == todo_id, Todo.user_id == current_user.id)
-        ).first()
+        )
+        todo = result.scalar_one_or_none()
         if not todo:
             raise HTTPException(status_code=404, detail="Todo not found")
         
         # Increment order_index for all existing subtasks
-        existing_subtasks = session.exec(
+        result = await session.execute(
             select(Subtask).where(Subtask.todo_id == todo_id)
-        ).all()
+        )
+        existing_subtasks = result.scalars().all()
         for existing_subtask in existing_subtasks:
             existing_subtask.order_index += 1
             session.add(existing_subtask)
@@ -508,12 +525,13 @@ async def create_subtask(request: Request, todo_id: str, title: str = Form(...),
         # Create new subtask with order_index = 0 (at the top)
         subtask = Subtask(title=title, todo_id=todo_id, order_index=0)
         session.add(subtask)
-        session.commit()
+        await session.commit()
         
         # Return updated subtasks list for HTMX
-        subtasks = session.exec(
+        result = await session.execute(
             select(Subtask).where(Subtask.todo_id == todo_id).order_by(Subtask.order_index.asc())
-        ).all()
+        )
+        subtasks = result.scalars().all()
     
     return templates.TemplateResponse("subtasks_partial.html", {
         "request": request,
@@ -523,23 +541,25 @@ async def create_subtask(request: Request, todo_id: str, title: str = Form(...),
 
 @app.post("/todos/{todo_id}/toggle")
 async def toggle_todo(request: Request, todo_id: str, current_user: Annotated[User, Depends(require_auth)] = None):
-    with Session(engine) as session:
-        todo = session.exec(
+    async with async_session() as session:
+        result = await session.execute(
             select(Todo).where(Todo.id == todo_id, Todo.user_id == current_user.id)
-        ).first()
+        )
+        todo = result.scalar_one_or_none()
         if not todo:
             raise HTTPException(status_code=404, detail="Todo not found")
         
         todo.completed = not todo.completed
         session.add(todo)
-        session.commit()
+        await session.commit()
         
         # Check if this is an HTMX request
         if request.headers.get("HX-Request"):
             # Get subtasks for the todo
-            subtasks = session.exec(
+            result = await session.execute(
                 select(Subtask).where(Subtask.todo_id == todo_id).order_by(Subtask.order_index.asc())
-            ).all()
+            )
+            subtasks = result.scalars().all()
             todo_with_subtasks = {"todo": todo, "subtasks": subtasks}
             return templates.TemplateResponse("todo_item.html", {
                 "request": request, 
@@ -550,25 +570,27 @@ async def toggle_todo(request: Request, todo_id: str, current_user: Annotated[Us
 
 @app.post("/subtasks/{subtask_id}/toggle")
 async def toggle_subtask(request: Request, subtask_id: str, current_user: Annotated[User, Depends(require_auth)] = None):
-    with Session(engine) as session:
+    async with async_session() as session:
         # Get subtask and verify it belongs to user's todo
-        subtask = session.exec(
+        result = await session.execute(
             select(Subtask).join(Todo).where(
                 Subtask.id == subtask_id,
                 Todo.user_id == current_user.id
             )
-        ).first()
+        )
+        subtask = result.scalar_one_or_none()
         if not subtask:
             raise HTTPException(status_code=404, detail="Subtask not found")
         
         subtask.completed = not subtask.completed
         session.add(subtask)
-        session.commit()
+        await session.commit()
         
         # Return updated subtasks list for HTMX
-        subtasks = session.exec(
+        result = await session.execute(
             select(Subtask).where(Subtask.todo_id == subtask.todo_id).order_by(Subtask.order_index.asc())
-        ).all()
+        )
+        subtasks = result.scalars().all()
     
     return templates.TemplateResponse("subtasks_partial.html", {
         "request": request,
@@ -578,22 +600,24 @@ async def toggle_subtask(request: Request, subtask_id: str, current_user: Annota
 
 @app.post("/todos/{todo_id}/delete")
 async def delete_todo(request: Request, todo_id: str, current_user: Annotated[User, Depends(require_auth)] = None):
-    with Session(engine) as session:
+    async with async_session() as session:
         # Check if todo belongs to user
-        todo = session.exec(
+        result = await session.execute(
             select(Todo).where(Todo.id == todo_id, Todo.user_id == current_user.id)
-        ).first()
+        )
+        todo = result.scalar_one_or_none()
         if not todo:
             raise HTTPException(status_code=404, detail="Todo not found")
         
         # Delete subtasks first
-        subtasks = session.exec(select(Subtask).where(Subtask.todo_id == todo_id)).all()
+        result = await session.execute(select(Subtask).where(Subtask.todo_id == todo_id))
+        subtasks = result.scalars().all()
         for subtask in subtasks:
-            session.delete(subtask)
+            await session.delete(subtask)
         
         # Delete todo
-        session.delete(todo)
-        session.commit()
+        await session.delete(todo)
+        await session.commit()
     
     # Check if this is an HTMX request
     if request.headers.get("HX-Request"):
@@ -603,25 +627,27 @@ async def delete_todo(request: Request, todo_id: str, current_user: Annotated[Us
 
 @app.post("/subtasks/{subtask_id}/delete")
 async def delete_subtask(request: Request, subtask_id: str, current_user: Annotated[User, Depends(require_auth)] = None):
-    with Session(engine) as session:
+    async with async_session() as session:
         # Get subtask and verify it belongs to user's todo
-        subtask = session.exec(
+        result = await session.execute(
             select(Subtask).join(Todo).where(
                 Subtask.id == subtask_id,
                 Todo.user_id == current_user.id
             )
-        ).first()
+        )
+        subtask = result.scalar_one_or_none()
         todo_id = subtask.todo_id if subtask else None
         
         if subtask:
-            session.delete(subtask)
-            session.commit()
+            await session.delete(subtask)
+            await session.commit()
         
         # Return updated subtasks list for HTMX
         if todo_id:
-            subtasks = session.exec(
+            result = await session.execute(
                 select(Subtask).where(Subtask.todo_id == todo_id).order_by(Subtask.order_index.asc())
-            ).all()
+            )
+            subtasks = result.scalars().all()
             return templates.TemplateResponse("subtasks_partial.html", {
                 "request": request,
                 "subtasks": subtasks,
@@ -635,15 +661,16 @@ async def reorder_todos(request: Request, current_user: Annotated[User, Depends(
     data = await request.json()
     todo_ids = data.get("todo_ids", [])
     
-    with Session(engine) as session:
+    async with async_session() as session:
         for index, todo_id in enumerate(todo_ids):
-            todo = session.exec(
+            result = await session.execute(
                 select(Todo).where(Todo.id == todo_id, Todo.user_id == current_user.id)
-            ).first()
+            )
+            todo = result.scalar_one_or_none()
             if todo:
                 todo.order_index = index
                 session.add(todo)
-        session.commit()
+        await session.commit()
     
     return {"status": "success"}
 
@@ -652,18 +679,19 @@ async def reorder_subtasks(request: Request, current_user: Annotated[User, Depen
     data = await request.json()
     subtask_ids = data.get("subtask_ids", [])
     
-    with Session(engine) as session:
+    async with async_session() as session:
         for index, subtask_id in enumerate(subtask_ids):
             # Verify subtask belongs to user's todo
-            subtask = session.exec(
+            result = await session.execute(
                 select(Subtask).join(Todo).where(
                     Subtask.id == subtask_id,
                     Todo.user_id == current_user.id
                 )
-            ).first()
+            )
+            subtask = result.scalar_one_or_none()
             if subtask:
                 subtask.order_index = index
                 session.add(subtask)
-        session.commit()
+        await session.commit()
     
     return {"status": "success"}

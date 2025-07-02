@@ -65,7 +65,7 @@
                 <div>
                     <button type="button" onclick="toggleDescriptionField()" 
                             class="text-xs text-neutral-500 dark:text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300">
-                        + добавить описание
+                        добавить описание
                     </button>
                 </div>
                 
@@ -241,11 +241,11 @@
             
             if (descriptionField.style.display === 'none') {
                 descriptionField.style.display = 'block';
-                toggleButton.textContent = '- скрыть описание';
+                toggleButton.textContent = 'скрыть описание';
                 document.getElementById('description').focus();
             } else {
                 descriptionField.style.display = 'none';
-                toggleButton.textContent = '+ добавить описание';
+                toggleButton.textContent = 'добавить описание';
                 document.getElementById('description').value = '';
             }
         }
@@ -256,7 +256,7 @@
             const toggleButton = descriptionField.previousElementSibling.querySelector('button');
             
             descriptionField.style.display = 'none';
-            toggleButton.textContent = '+ добавить описание';
+            toggleButton.textContent = 'добавить описание';
         }
 
         // Make todos sortable
