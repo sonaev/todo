@@ -98,6 +98,8 @@ async def get_current_user(session_token: Annotated[str | None, Cookie()] = None
         
         # Get user
         user = await session.get(User, user_session.user_id)
+        if not user or not user.is_active:
+            return None
         return user
 
 async def require_auth(current_user: Annotated[User | None, Depends(get_current_user)]):
@@ -441,7 +443,7 @@ async def forgot_password(request: Request, email: str = Form(...)):
         await session.commit()
         
         # Отправляем email с инструкциями
-        email_sent = send_password_reset_email(user.email, reset_token, request)
+        send_password_reset_email(user.email, reset_token, request)
         
         # Всегда показываем успешное сообщение для безопасности
         return templates.TemplateResponse("auth.html", {
