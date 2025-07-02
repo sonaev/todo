@@ -183,7 +183,7 @@ async def lifespan(app: FastAPI):
     await engine.dispose()
 
 # FastAPI app
-app = FastAPI(title="Todo App with Subtasks", lifespan=lifespan)
+app = FastAPI(title="Segmentum Api", lifespan=lifespan)
 
 # Static files and templates
 templates = Jinja2Templates(directory="templates")
