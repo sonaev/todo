@@ -21,7 +21,7 @@ class User(SQLModel, table=True):
     username: str = Field(unique=True, index=True)
     email: str = Field(unique=True, index=True)
     password_hash: str
-    telegram_id: Optional[str] = Field(default=None, unique=True, index=True)
+    telegram_username: Optional[str] = Field(default=None, unique=True, index=True)
     created_at: datetime = Field(default_factory=datetime.now)
     is_active: bool = Field(default=True)
 
@@ -350,33 +350,55 @@ async def reset_password(request: Request, token: str = Form(...), password: str
     })
 
 @app.post("/register")
-async def register(request: Request, username: str = Form(...), email: str = Form(...), password: str = Form(...), password_confirm: str = Form(...)):
+async def register(request: Request, username: str = Form(...), email: str = Form(...), password: str = Form(...), password_confirm: str = Form(...), telegram_username: Optional[str] = Form(None)):
     if password != password_confirm:
         return templates.TemplateResponse("auth.html", {
             "request": request,
             "error": "Пароли не совпадают"
         })
     
+    # Clean telegram_username
+    if telegram_username and telegram_username.strip():
+        telegram_username = telegram_username.strip()
+        if not telegram_username.startswith('@'):
+            telegram_username = '@' + telegram_username
+    else:
+        telegram_username = None
+    
     async with async_session() as session:
         # Check if user exists
+        conditions = [(User.username == username), (User.email == email)]
+        if telegram_username:
+            conditions.append(User.telegram_username == telegram_username)
+        
         result = await session.execute(
             select(User).where(
-                (User.username == username) | (User.email == email)
+                conditions[0] | conditions[1] | (conditions[2] if len(conditions) > 2 else False)
             )
         )
         existing_user = result.scalar_one_or_none()
         
         if existing_user:
+            if existing_user.username == username:
+                error_msg = "Пользователь с таким именем уже существует"
+            elif existing_user.email == email:
+                error_msg = "Пользователь с таким email уже существует"
+            elif telegram_username and existing_user.telegram_username == telegram_username:
+                error_msg = "Пользователь с таким Telegram уже существует"
+            else:
+                error_msg = "Пользователь уже существует"
+            
             return templates.TemplateResponse("auth.html", {
                 "request": request,
-                "error": "Пользователь с таким именем или email уже существует"
+                "error": error_msg
             })
         
         # Create user
         user = User(
             username = username,
             email = email,
-            password_hash = hash_password(password)
+            password_hash = hash_password(password),
+            telegram_username = telegram_username
         )
         session.add(user)
         await session.commit()
