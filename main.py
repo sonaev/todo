@@ -373,9 +373,9 @@ async def register(request: Request, username: str = Form(...), email: str = For
         
         # Create user
         user = User(
-            username=username,
-            email=email,
-            password_hash=hash_password(password)
+            username = username,
+            email = email,
+            password_hash = hash_password(password)
         )
         session.add(user)
         await session.commit()
@@ -385,20 +385,20 @@ async def register(request: Request, username: str = Form(...), email: str = For
         expires_at = datetime.now() + timedelta(hours=24)
         
         user_session = UserSession(
-            user_id=user.id,
-            session_token=session_token,
-            expires_at=expires_at
+            user_id = user.id,
+            session_token = session_token,
+            expires_at = expires_at
         )
         session.add(user_session)
         await session.commit()
         
         response = RedirectResponse(url="/", status_code=302)
         response.set_cookie(
-            key="session_token",
-            value=session_token,
-            max_age=24 * 60 * 60,
-            httponly=True,
-            secure=False
+            key = "session_token",
+            value = session_token,
+            max_age = 24 * 60 * 60,
+            httponly = True,
+            secure = False
         )
         return response
 
@@ -435,9 +435,9 @@ async def forgot_password(request: Request, email: str = Form(...)):
         expires_at = datetime.now() + timedelta(hours=2)
         
         password_reset = PasswordReset(
-            user_id=user.id,
-            reset_token=reset_token,
-            expires_at=expires_at
+            user_id = user.id,
+            reset_token = reset_token,
+            expires_at = expires_at
         )
         session.add(password_reset)
         await session.commit()
