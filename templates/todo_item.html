@@ -1,4 +1,4 @@
-<div class="todo-item bg-white dark:bg-neutral-800 rounded-lg shadow-md" data-todo-id="{{ item.todo.id }}">
+<div class="todo-item bg-white dark:bg-neutral-800 rounded-lg shadow-md mb-4" data-todo-id="{{ item.todo.id }}" data-todo-order="{{ item.todo.order }}">
     <!-- Todo Header -->
     <div class="p-6 border-b border-neutral-200 dark:border-neutral-700">
         <div class="flex items-start justify-between">
@@ -28,31 +28,62 @@
             
             <!-- Todo Content -->
             <div class="flex-1">
-                <h3 class="text-lg font-semibold {{ 'line-through text-neutral-500 dark:text-neutral-400' if item.todo.completed else 'text-neutral-900 dark:text-neutral-100' }}">
-                    {{ item.todo.title }}
-                </h3>
-                {% if item.todo.description %}
-                <p class="text-neutral-600 dark:text-neutral-300 mt-1">{{ item.todo.description }}</p>
-                {% endif %}
-                <p class="text-xs text-neutral-400 dark:text-neutral-500 mt-1">
-                    Created: {{ item.todo.created_at.strftime('%Y-%m-%d %H:%M') }}
-                </p>
+                <!-- View Mode -->
+                <div id="todo-view-{{ item.todo.id }}" class="todo-view">
+                    <h3 class="text-lg font-semibold {{ 'line-through text-neutral-500 dark:text-neutral-400' if item.todo.completed else 'text-neutral-900 dark:text-neutral-100' }}">
+                        {{ item.todo.title }}
+                    </h3>
+                    {% if item.todo.description %}
+                    <p class="text-neutral-600 dark:text-neutral-300 mt-1">{{ item.todo.description }}</p>
+                    {% endif %}
+                    <p class="text-xs text-neutral-400 dark:text-neutral-500 mt-1">
+                        Created: {{ item.todo.created_at.strftime('%Y-%m-%d %H:%M') }}
+                    </p>
+                </div>
+                
+                <!-- Edit Mode -->
+                <div id="todo-edit-{{ item.todo.id }}" class="todo-edit hidden">
+                    <form hx-post="/todos/{{ item.todo.id }}/edit" hx-target="[data-todo-id='{{ item.todo.id }}']" hx-swap="outerHTML">
+                        <input type="text" name="title" value="{{ item.todo.title }}" class="w-full px-2 py-1 rounded text-sm mb-3 bg-white dark:bg-neutral-800 border-neutral-300 dark:border-neutral-600 text-neutral-800 dark:text-neutral-100" required>
+                        <textarea name="description" placeholder="Description (optional)" class="w-full px-2 py-1 rounded text-sm mb-2 bg-white dark:bg-neutral-800 border-neutral-300 dark:border-neutral-600 text-neutral-800 dark:text-neutral-100 resize-none" rows="2">{{ item.todo.description or '' }}</textarea>
+                        <div class="flex space-x-2 pl-2">
+                            <button type="submit" class=" text-green-600 rounded hover:text-green-500" title="Save">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="m4.5 12.75 6 6 9-13.5"></path>
+                                </svg>
+                            </button>
+                            <button type="button" onclick="cancelEditTodo('{{ item.todo.id }}')" class="text-neutral-500 hover:text-neutral-400 rounded" title="Cancel">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
         
         <!-- Action Buttons -->
-        <div class="flex items-center space-x-2">
-            <!-- Public View Button -->
-            <a href="/todos/{{ item.todo.id }}/view" target="_blank" class="text-neutral-400 dark:text-neutral-500 hover:text-blue-600 dark:hover:text-blue-400 p-1" title="Open in new window">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-                </svg>
-            </a>
+        <div class="flex items-center space-x-2 todo-actions">
+        
+        <!-- Edit Button -->
+        <button onclick="editTodo('{{ item.todo.id }}')" class="text-neutral-400 dark:text-neutral-500 hover:text-blue-600 dark:hover:text-blue-400 p-1 pl-4" title="Edit todo">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+            </svg>
+        </button>
+
+        <!-- Public View Button -->
+        <a href="/todos/{{ item.todo.id }}/view" target="_blank" class="text-neutral-400 dark:text-neutral-500 hover:text-blue-600 dark:hover:text-blue-400 p-1" title="Open in new window">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+            </svg>
+        </a>
             
             <!-- Delete Button -->
             <form hx-post="/todos/{{ item.todo.id }}/delete" hx-target="[data-todo-id='{{ item.todo.id }}']" hx-swap="outerHTML" hx-confirm="Are you sure you want to delete this todo and all its subtasks?">
                 <button type="submit" class="text-neutral-400 dark:text-neutral-500 hover:text-red-600 dark:hover:text-red-400 p-1">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                     </svg>
                 </button>
@@ -68,7 +99,7 @@
         <form hx-post="/todos/{{ item.todo.id }}/subtasks" hx-target="[data-todo-id='{{ item.todo.id }}']" hx-swap="outerHTML" hx-on::after-request="this.reset()" class="mb-4">
             <div class="flex space-x-2">
                 <input type="text" name="title" placeholder="Add a subtask..." required
-                       class="flex-1 px-3 py-2 border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 dark:text-neutral-100 dark:placeholder-neutral-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                       class="flex-1 px-3 py-2 bg-neutral-100 dark:bg-neutral-700 dark:text-neutral-100 dark:placeholder-neutral-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <button type="submit" 
                         class="bg-neutral-600 dark:bg-neutral-700 text-white px-4 py-2 rounded-md hover:bg-neutral-700 dark:hover:bg-neutral-600 transition duration-200">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -86,7 +117,8 @@
                 {% for subtask in item.subtasks %}
             <div class="subtask-item flex items-center space-x-3 py-2 border-b border-neutral-100 dark:border-neutral-700 last:border-b-0" data-subtask-id="{{ subtask.id }}">
                 <!-- Drag Handle -->
-                <div class="subtask-drag-handle cursor-move text-neutral-400 hover:text-neutral-600">
+                <!-- Drag Handle -->
+                <div class="subtask-drag-handle cursor-move text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-400">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"></path>
                     </svg>
@@ -100,7 +132,7 @@
                             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
                         </svg>
                         {% else %}
-                        <svg class="w-4 h-4 text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4 text-neutral-400 hover:text-neutral-600 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <circle cx="12" cy="12" r="10" stroke-width="2"></circle>
                         </svg>
                         {% endif %}
@@ -108,24 +140,115 @@
                 </form>
                 
                 <!-- Subtask Content -->
-                <span class="flex-1 {{ 'line-through text-neutral-500 dark:text-neutral-400' if subtask.completed else 'text-neutral-700 dark:text-neutral-200' }}">
-                    {{ subtask.title }}
-                </span>
+                <div class="flex-1">
+                    <!-- Subtask View Mode -->
+                    <span id="subtask-view-{{ subtask.id }}" class="subtask-view {{ 'line-through text-neutral-500 dark:text-neutral-400' if subtask.completed else 'text-neutral-700 dark:text-neutral-200' }}">
+                        {{ subtask.title }}
+                    </span>
+                    
+                    <!-- Subtask Edit Mode -->
+                    <div id="subtask-edit-{{ subtask.id }}" class="subtask-edit hidden">
+                        <form hx-post="/subtasks/{{ subtask.id }}/edit" hx-target="[data-todo-id='{{ item.todo.id }}']" hx-swap="outerHTML" class="flex space-x-2">
+                            <input type="text" name="title" value="{{ subtask.title }}" class="flex-1 px-2 py-0.5 rounded text-sm bg-white dark:bg-neutral-800 border-neutral-300 dark:border-neutral-600 text-neutral-800 dark:text-neutral-100" required>
+                            <button type="submit" class="text-green-500 rounded hover:text-green-400" title="Save">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="m4.5 12.75 6 6 9-13.5"></path>
+                                </svg>
+                            </button>
+                            <button type="button" onclick="cancelEditSubtask('{{ subtask.id }}')" class="text-neutral-500 rounded hover:text-neutral-400" title="Cancel">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </form>
+                    </div>
+                </div>
                 
-                <!-- Delete Button -->
-                <form hx-post="/subtasks/{{ subtask.id }}/delete" hx-target="[data-todo-id='{{ item.todo.id }}']" hx-swap="outerHTML" hx-confirm="Are you sure you want to delete this subtask?">
-                    <button type="submit" class="text-neutral-400 dark:text-neutral-500 hover:text-red-600 dark:hover:text-red-400 p-1">
+                <!-- Subtask Actions -->
+                <div class="subtask-actions">
+                    <!-- Edit Subtask Button -->
+                    <button onclick="editSubtask('{{ subtask.id }}')" class="text-neutral-400 dark:text-neutral-500 hover:text-blue-600 dark:hover:text-blue-400 p-1 mr-1" title="Edit subtask">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                         </svg>
                     </button>
-                </form>
+                    
+                    <!-- Delete Button -->
+                    <form hx-post="/subtasks/{{ subtask.id }}/delete" hx-target="[data-todo-id='{{ item.todo.id }}']" hx-swap="outerHTML" hx-confirm="Are you sure you want to delete this subtask?" class="inline">
+                        <button type="submit" class="text-neutral-400 dark:text-neutral-500 hover:text-red-600 dark:hover:text-red-400 p-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                        </button>
+                    </form>
+                </div>
                 </div>
                 {% endfor %}
             </div>
             {% else %}
-            <p class="text-neutral-500 text-sm italic">No subtasks yet. Add one above!</p>
+            <p class="text-neutral-500 text-sm">No subtasks yet.</p>
             {% endif %}
         </div>
     </div>
 </div>
+
+<script>
+function editTodo(todoId) {
+    document.getElementById('todo-view-' + todoId).classList.add('hidden');
+    document.getElementById('todo-edit-' + todoId).classList.remove('hidden');
+    // Focus on the title input
+    document.querySelector('#todo-edit-' + todoId + ' input[name="title"]').focus();
+}
+
+function cancelEditTodo(todoId) {
+    document.getElementById('todo-view-' + todoId).classList.remove('hidden');
+    document.getElementById('todo-edit-' + todoId).classList.add('hidden');
+}
+
+function editSubtask(subtaskId) {
+    document.getElementById('subtask-view-' + subtaskId).classList.add('hidden');
+    document.getElementById('subtask-edit-' + subtaskId).classList.remove('hidden');
+    // Focus on the title input
+    document.querySelector('#subtask-edit-' + subtaskId + ' input[name="title"]').focus();
+}
+
+function cancelEditSubtask(subtaskId) {
+    document.getElementById('subtask-view-' + subtaskId).classList.remove('hidden');
+    document.getElementById('subtask-edit-' + subtaskId).classList.add('hidden');
+}
+</script>
+
+<style>
+    /* Hide action buttons by default */
+    .todo-actions {
+        opacity: 0;
+        transition: opacity 0.2s ease;
+    }
+    
+    /* Show action buttons on hover */
+    .todo-item:hover .todo-actions {
+        opacity: 1;
+    }
+    
+    /* Hide subtask action buttons by default */
+    .subtask-actions {
+        opacity: 0;
+        transition: opacity 0.2s ease;
+    }
+    
+    /* Show subtask action buttons on hover */
+    .subtask-item:hover .subtask-actions {
+        opacity: 1;
+    }
+    
+    /* Remove input focus outline */
+    input:focus, textarea:focus {
+        outline: none !important;
+        box-shadow: none !important;
+        border-color: #d1d5db !important;
+    }
+    
+    .dark input:focus, .dark textarea:focus {
+        border-color: #4b5563 !important;
+    }
+</style>

@@ -696,6 +696,67 @@ async def delete_todo(request: Request, todo_id: str, current_user: Annotated[Us
     
     return RedirectResponse(url="/", status_code=303)
 
+@app.post("/todos/{todo_id}/edit")
+async def edit_todo(request: Request, todo_id: str, title: str = Form(...), description: str = Form(""), current_user: Annotated[User, Depends(require_auth)] = None):
+    async with async_session() as session:
+        # Check if todo belongs to user
+        result = await session.execute(
+            select(Todo).where(Todo.id == todo_id, Todo.user_id == current_user.id)
+        )
+        todo = result.scalar_one_or_none()
+        if not todo:
+            raise HTTPException(status_code=404, detail="Todo not found")
+        
+        # Update todo
+        todo.title = title.strip()
+        todo.description = description.strip() if description else None
+        session.add(todo)
+        await session.commit()
+        
+        # Get updated subtasks for HTMX response
+        result = await session.execute(
+            select(Subtask).where(Subtask.todo_id == todo_id).order_by(Subtask.order_index.asc())
+        )
+        subtasks = result.scalars().all()
+        todo_with_subtasks = {"todo": todo, "subtasks": subtasks}
+    
+    return templates.TemplateResponse("todo_item.html", {
+        "request": request,
+        "item": todo_with_subtasks
+    })
+
+@app.post("/subtasks/{subtask_id}/edit")
+async def edit_subtask(request: Request, subtask_id: str, title: str = Form(...), current_user: Annotated[User, Depends(require_auth)] = None):
+    async with async_session() as session:
+        # Check if subtask belongs to user
+        result = await session.execute(
+            select(Subtask).join(Todo).where(
+                Subtask.id == subtask_id,
+                Todo.user_id == current_user.id
+            )
+        )
+        subtask = result.scalar_one_or_none()
+        if not subtask:
+            raise HTTPException(status_code=404, detail="Subtask not found")
+        
+        # Update subtask
+        subtask.title = title.strip()
+        session.add(subtask)
+        await session.commit()
+        
+        # Get the parent todo and all subtasks for HTMX response
+        todo = await session.get(Todo, subtask.todo_id)
+        result = await session.execute(
+            select(Subtask).where(Subtask.todo_id == subtask.todo_id).order_by(Subtask.order_index.asc())
+        )
+        subtasks = result.scalars().all()
+        todo_with_subtasks = {"todo": todo, "subtasks": subtasks}
+    
+    return templates.TemplateResponse("todo_item.html", {
+        "request": request,
+        "item": todo_with_subtasks
+    })
+
 @app.post("/subtasks/{subtask_id}/delete")
 async def delete_subtask(request: Request, subtask_id: str, current_user: Annotated[User, Depends(require_auth)] = None):
     async with async_session() as session:

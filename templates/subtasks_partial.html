@@ -10,7 +10,7 @@
         </div>
         
         <!-- Checkbox -->
-        <form hx-post="/subtasks/{{ subtask.id }}/toggle" hx-target="[data-todo-id='{{ todo_id }}']" hx-swap="outerHTML">
+        <form hx-post="/subtasks/{{ subtask.id }}/toggle" hx-target="[data-todo-id='{{ item.todo.id }}']" hx-swap="outerHTML">
             <button type="submit" class="focus:outline-none">
                 {% if subtask.completed %}
                 <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
