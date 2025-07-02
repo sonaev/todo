@@ -11,14 +11,15 @@
                 </div>
             
             <!-- Checkbox -->
+            {% set has_incomplete_subtasks = item.subtasks and item.subtasks|selectattr('completed', 'equalto', false)|list|length > 0 %}
             <form hx-post="/todos/{{ item.todo.id }}/toggle" hx-target="[data-todo-id='{{ item.todo.id }}']" hx-swap="outerHTML" class="pt-1">
-                <button type="submit" class="focus:outline-none">
+                <button type="submit" class="focus:outline-none {{ 'cursor-not-allowed opacity-50' if has_incomplete_subtasks and not item.todo.completed else '' }}" {{ 'disabled' if has_incomplete_subtasks and not item.todo.completed else '' }} title="{{ 'Complete all subtasks first' if has_incomplete_subtasks and not item.todo.completed else '' }}">
                     {% if item.todo.completed %}
                     <svg class="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
                     </svg>
                     {% else %}
-                    <svg class="w-5 h-5 text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5 {{ 'text-neutral-300 dark:text-neutral-600' if has_incomplete_subtasks else 'text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <circle cx="12" cy="12" r="10" stroke-width="2"></circle>
                     </svg>
                     {% endif %}
@@ -53,7 +54,7 @@
     <!-- Subtasks Section -->
     <div class="p-6">
         <!-- Add Subtask Form -->
-        <form hx-post="/todos/{{ item.todo.id }}/subtasks" hx-target="#subtasks-{{ item.todo.id }}" hx-swap="innerHTML" hx-on::after-request="this.reset()" class="mb-4">
+        <form hx-post="/todos/{{ item.todo.id }}/subtasks" hx-target="[data-todo-id='{{ item.todo.id }}']" hx-swap="outerHTML" hx-on::after-request="this.reset()" class="mb-4">
             <div class="flex space-x-2">
                 <input type="text" name="title" placeholder="Add a subtask..." required
                        class="flex-1 px-3 py-2 border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 dark:text-neutral-100 dark:placeholder-neutral-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
@@ -71,7 +72,7 @@
             {% if item.subtasks %}
             <div class="subtasks-container" data-todo-id="{{ item.todo.id }}">
                 {% for subtask in item.subtasks %}
-            <div class="subtask-item flex items-center space-x-3 py-2 border-b border-neutral-100 last:border-b-0" data-subtask-id="{{ subtask.id }}">
+            <div class="subtask-item flex items-center space-x-3 py-2 border-b border-neutral-100 dark:border-neutral-700 last:border-b-0" data-subtask-id="{{ subtask.id }}">
                 <!-- Drag Handle -->
                 <div class="subtask-drag-handle cursor-move text-neutral-400 hover:text-neutral-600">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -80,28 +81,28 @@
                 </div>
                 
                 <!-- Checkbox -->
-                <form hx-post="/subtasks/{{ subtask.id }}/toggle" hx-target="#subtasks-{{ item.todo.id }}" hx-swap="innerHTML">
+                <form hx-post="/subtasks/{{ subtask.id }}/toggle" hx-target="[data-todo-id='{{ item.todo.id }}']" hx-swap="outerHTML">
                     <button type="submit" class="focus:outline-none">
                         {% if subtask.completed %}
                         <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
                         </svg>
                         {% else %}
-                        <svg class="w-4 h-4 text-neutral-400 hover:text-neutral-600"<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <circle cx="12" cy="12" r="10" stroke-width="2"></circle>
+                        <svg class="w-4 h-4 text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10" stroke-width="2"></circle>
                         </svg>
                         {% endif %}
                     </button>
                 </form>
                 
                 <!-- Subtask Content -->
-                <span class="flex-1 {{ 'line-through text-neutral-500' if subtask.completed else 'text-neutral-700' }}">
+                <span class="flex-1 {{ 'line-through text-neutral-500 dark:text-neutral-400' if subtask.completed else 'text-neutral-700 dark:text-neutral-200' }}">
                     {{ subtask.title }}
                 </span>
                 
                 <!-- Delete Button -->
-                <form hx-post="/subtasks/{{ subtask.id }}/delete" hx-target="#subtasks-{{ item.todo.id }}" hx-swap="innerHTML" hx-confirm="Are you sure you want to delete this subtask?">
-                    <button type="submit" class="text-neutral-400 hover:text-red-600 p-1">
+                <form hx-post="/subtasks/{{ subtask.id }}/delete" hx-target="[data-todo-id='{{ item.todo.id }}']" hx-swap="outerHTML" hx-confirm="Are you sure you want to delete this subtask?">
+                    <button type="submit" class="text-neutral-400 dark:text-neutral-500 hover:text-red-600 dark:hover:text-red-400 p-1">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                         </svg>

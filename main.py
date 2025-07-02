@@ -527,17 +527,20 @@ async def create_subtask(request: Request, todo_id: str, title: str = Form(...),
         session.add(subtask)
         await session.commit()
         
-        # Return updated subtasks list for HTMX
-        result = await session.execute(
-            select(Subtask).where(Subtask.todo_id == todo_id).order_by(Subtask.order_index.asc())
-        )
-        subtasks = result.scalars().all()
+        # Check if this is an HTMX request
+        if request.headers.get("HX-Request"):
+            # Get updated todo and subtasks for HTMX response
+            result = await session.execute(
+                select(Subtask).where(Subtask.todo_id == todo_id).order_by(Subtask.order_index.asc())
+            )
+            subtasks = result.scalars().all()
+            todo_with_subtasks = {"todo": todo, "subtasks": subtasks}
+            return templates.TemplateResponse("todo_item.html", {
+                "request": request, 
+                "item": todo_with_subtasks
+            })
     
-    return templates.TemplateResponse("subtasks_partial.html", {
-        "request": request,
-        "subtasks": subtasks,
-        "todo_id": todo_id
-    })
+    return RedirectResponse(url="/", status_code=303)
 
 @app.post("/todos/{todo_id}/toggle")
 async def toggle_todo(request: Request, todo_id: str, current_user: Annotated[User, Depends(require_auth)] = None):
@@ -549,13 +552,36 @@ async def toggle_todo(request: Request, todo_id: str, current_user: Annotated[Us
         if not todo:
             raise HTTPException(status_code=404, detail="Todo not found")
         
-        todo.completed = not todo.completed
-        session.add(todo)
+        # Get subtasks for this todo
+        result = await session.execute(
+            select(Subtask).where(Subtask.todo_id == todo_id)
+        )
+        subtasks = result.scalars().all()
+        
+        # If trying to mark todo as completed but has incomplete subtasks, prevent it
+        if not todo.completed and subtasks:
+            incomplete_subtasks = [s for s in subtasks if not s.completed]
+            if incomplete_subtasks:
+                # Don't toggle, keep todo incomplete
+                pass
+            else:
+                # All subtasks are completed, allow toggling
+                todo.completed = not todo.completed
+                session.add(todo)
+        elif todo.completed:
+            # Allow unchecking completed todo
+            todo.completed = not todo.completed
+            session.add(todo)
+        elif not subtasks:
+            # No subtasks, allow normal toggling
+            todo.completed = not todo.completed
+            session.add(todo)
+        
         await session.commit()
         
         # Check if this is an HTMX request
         if request.headers.get("HX-Request"):
-            # Get subtasks for the todo
+            # Get updated subtasks for the todo
             result = await session.execute(
                 select(Subtask).where(Subtask.todo_id == todo_id).order_by(Subtask.order_index.asc())
             )
@@ -584,18 +610,37 @@ async def toggle_subtask(request: Request, subtask_id: str, current_user: Annota
         
         subtask.completed = not subtask.completed
         session.add(subtask)
+        
+        # Get the parent todo
+        todo = await session.get(Todo, subtask.todo_id)
+        
+        # Check if all subtasks are completed after this change
+        result = await session.execute(
+            select(Subtask).where(Subtask.todo_id == subtask.todo_id)
+        )
+        all_subtasks = result.scalars().all()
+        
+        # Auto-complete parent todo if all subtasks are completed
+        if all_subtasks and all(s.completed for s in all_subtasks):
+            todo.completed = True
+            session.add(todo)
+        # Auto-uncomplete parent todo if any subtask becomes incomplete
+        elif todo.completed and any(not s.completed for s in all_subtasks):
+            todo.completed = False
+            session.add(todo)
+        
         await session.commit()
         
-        # Return updated subtasks list for HTMX
+        # Return updated todo item for HTMX
         result = await session.execute(
             select(Subtask).where(Subtask.todo_id == subtask.todo_id).order_by(Subtask.order_index.asc())
         )
         subtasks = result.scalars().all()
+        todo_with_subtasks = {"todo": todo, "subtasks": subtasks}
     
-    return templates.TemplateResponse("subtasks_partial.html", {
+    return templates.TemplateResponse("todo_item.html", {
         "request": request,
-        "subtasks": subtasks,
-        "todo_id": subtask.todo_id
+        "item": todo_with_subtasks
     })
 
 @app.post("/todos/{todo_id}/delete")
@@ -640,18 +685,37 @@ async def delete_subtask(request: Request, subtask_id: str, current_user: Annota
         
         if subtask:
             await session.delete(subtask)
+            
+            # Get the parent todo
+            todo = await session.get(Todo, todo_id)
+            
+            # Check remaining subtasks after deletion
+            result = await session.execute(
+                select(Subtask).where(Subtask.todo_id == todo_id)
+            )
+            remaining_subtasks = result.scalars().all()
+            
+            # Auto-complete parent todo if all remaining subtasks are completed
+            if remaining_subtasks and all(s.completed for s in remaining_subtasks):
+                todo.completed = True
+                session.add(todo)
+            # If no subtasks left, allow manual completion again
+            elif not remaining_subtasks:
+                # Keep current completion status but allow manual toggling again
+                pass
+            
             await session.commit()
         
-        # Return updated subtasks list for HTMX
+        # Return updated todo item for HTMX
         if todo_id:
             result = await session.execute(
                 select(Subtask).where(Subtask.todo_id == todo_id).order_by(Subtask.order_index.asc())
             )
             subtasks = result.scalars().all()
-            return templates.TemplateResponse("subtasks_partial.html", {
+            todo_with_subtasks = {"todo": todo, "subtasks": subtasks}
+            return templates.TemplateResponse("todo_item.html", {
                 "request": request,
-                "subtasks": subtasks,
-                "todo_id": todo_id
+                "item": todo_with_subtasks
             })
     
     return HTMLResponse("")
