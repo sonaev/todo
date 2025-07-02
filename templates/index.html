@@ -147,7 +147,8 @@
 
                 <!-- Subtasks Section -->
                 <div class="p-6">
-                    <!-- Add Subtask Form -->
+                    <!-- Add Subtask Form - only show if todo is not completed -->
+                    {% if not item.todo.completed %}
                     <form hx-post="/todos/{{ item.todo.id }}/subtasks" hx-target="[data-todo-id='{{ item.todo.id }}']" hx-swap="outerHTML" hx-on::after-request="this.reset()" class="mb-4">
                         <div class="flex space-x-2">
                             <input type="text" name="title" placeholder="Add a subtask..." required
@@ -160,6 +161,7 @@
                             </button>
                         </div>
                     </form>
+                    {% endif %}
 
                     <!-- Subtasks List -->
                     <div id="subtasks-{{ item.todo.id }}">
