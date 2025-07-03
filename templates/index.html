@@ -88,7 +88,7 @@
             <form hx-post="/todos" hx-target="#todos-container" hx-swap="afterbegin" hx-on::after-request="this.reset(); hideEmptyState(); hideDescriptionField();" class="space-y-4">
                 <!-- Main input row -->
                 <div class="flex space-x-3">
-                    <input type="text" id="title" name="title" placeholder="Добавить задачу..." required 
+                    <input type="text" id="title" name="title" placeholder="Add a task..." required 
                            class="flex-1 px-3 py-2 bg-neutral-100 dark:bg-neutral-700 dark:text-neutral-100 dark:placeholder-neutral-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                     <button type="submit" 
                             class="bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700 transition duration-200 flex items-center justify-center">
@@ -102,13 +102,13 @@
                 <div>
                     <button type="button" onclick="toggleDescriptionField()" 
                             class="text-xs text-neutral-500 dark:text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300">
-                        добавить описание
+                        Add description
                     </button>
                 </div>
                 
                 <!-- Description field (hidden by default) -->
                 <div id="description-field" style="display: none;">
-                    <textarea id="description" name="description" placeholder="Описание задачи..." rows="2" 
+                    <textarea id="description" name="description" placeholder="Add a task description..." rows="2" 
                               class="w-full px-3 py-2 bg-neutral-100 dark:bg-neutral-700 dark:text-neutral-100 dark:placeholder-neutral-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
                 </div>
             </form>
@@ -379,11 +379,11 @@
             
             if (descriptionField.style.display === 'none') {
                 descriptionField.style.display = 'block';
-                toggleButton.textContent = 'скрыть описание';
+                toggleButton.textContent = 'Hide description';
                 document.getElementById('description').focus();
             } else {
                 descriptionField.style.display = 'none';
-                toggleButton.textContent = 'добавить описание';
+                toggleButton.textContent = 'Add description';
                 document.getElementById('description').value = '';
             }
         }
