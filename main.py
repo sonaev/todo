@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Form, Request, HTTPException, Depends, Cookie
 from contextlib import asynccontextmanager
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import SQLModel, Field, select
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
@@ -198,11 +198,11 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         # Если это AJAX запрос, возвращаем JSON
         accept_header = request.headers.get("accept", "")
         if "application/json" in accept_header or "text/javascript" in accept_header:
-            return {"detail": exc.detail, "redirect": "/login"}
+            return JSONResponse(content={"detail": exc.detail, "redirect": "/login"}, status_code=401)
         # Иначе перенаправляем на страницу входа
         return RedirectResponse(url="/login", status_code=302)
-    # Для других ошибок возвращаем стандартный обработчик
-    return {"detail": exc.detail}
+    # Для других ошибок возвращаем JSONResponse
+    return JSONResponse(content={"detail": exc.detail}, status_code=exc.status_code)
 
 # Authentication Routes
 @app.get("/login", response_class=HTMLResponse)
