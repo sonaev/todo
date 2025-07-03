@@ -25,16 +25,54 @@
                 <!-- Todo Header -->
                 <div class="p-6 border-b border-neutral-200 dark:border-neutral-700">
                     <div class="flex items-start space-x-3">
-                        <!-- Status Icon -->
+                        <!-- Progress Circle -->
                         <div class="pt-1">
-                            {% if item.todo.completed %}
-                            <svg class="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                            </svg>
+                            {% set total_subtasks = item.subtasks|length %}
+                            {% set completed_subtasks = item.subtasks|selectattr('completed')|list|length %}
+                            
+                            {% if total_subtasks > 0 %}
+                                <div class="relative w-8 h-8">
+                                    <svg class="w-8 h-8 transform -rotate-90" viewBox="0 0 32 32">
+                                        <!-- Background circle -->
+                                        <circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" stroke-width="2" class="text-neutral-200 dark:text-neutral-600"></circle>
+                                        
+                                        <!-- Progress segments using stroke-dasharray -->
+                                        {% set circumference = 87.96 %} <!-- 2 * π * 14 ≈ 87.96 -->
+                                        {% set segment_length = circumference / total_subtasks %}
+                                        {% set gap_length = 0.5 %}  <!-- Small gap between segments -->
+                                        {% set adjusted_segment = segment_length - gap_length %}
+                                        
+                                        {% for i in range(total_subtasks) %}
+                                            {% set is_completed = item.subtasks[i].completed %}
+                                            {% set offset = -(i * segment_length) %}
+                                            
+                                            <circle cx="16" cy="16" r="14" fill="none" 
+                                                    stroke="{{ '#22c55e' if is_completed else '#d1d5db' }}" 
+                                                    stroke-width="2" 
+                                                    stroke-dasharray="{{ adjusted_segment }} {{ circumference - adjusted_segment }}" 
+                                                    stroke-dashoffset="{{ offset }}"
+                                                    class="{{ 'opacity-90' if is_completed else 'opacity-40' }}"></circle>
+                                        {% endfor %}
+                                    </svg>
+                                    
+                                    <!-- Center text showing progress -->
+                                    <div class="absolute inset-0 flex items-center justify-center">
+                                        <span class="text-[9px] font-medium text-neutral-600 dark:text-neutral-300">
+                                            {{ completed_subtasks }}/{{ total_subtasks }}
+                                        </span>
+                                    </div>
+                                </div>
                             {% else %}
-                            <svg class="w-5 h-5 text-neutral-400 dark:text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <circle cx="12" cy="12" r="10" stroke-width="2"></circle>
-                            </svg>
+                                <!-- No subtasks - show simple status icon -->
+                                {% if item.todo.completed %}
+                                <svg class="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                </svg>
+                                {% else %}
+                                <svg class="w-5 h-5 text-neutral-400 dark:text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <circle cx="12" cy="12" r="10" stroke-width="2"></circle>
+                                </svg>
+                                {% endif %}
                             {% endif %}
                         </div>
                         
@@ -47,7 +85,7 @@
                             <p class="text-neutral-600 dark:text-neutral-300 mt-1">{{ item.todo.description }}</p>
                             {% endif %}
                             <p class="text-xs text-neutral-400 dark:text-neutral-500 mt-1">
-                                Created: {{ item.todo.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                {{ item.todo.created_at.strftime('%d %B %Y at %H:%M') }}
                             </p>
                         </div>
                     </div>
