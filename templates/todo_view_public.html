@@ -45,7 +45,7 @@
                                         <!-- Progress segments using stroke-dasharray -->
                                         {% set circumference = 87.96 %} <!-- 2 * π * 14 ≈ 87.96 -->
                                         {% set segment_length = circumference / total_subtasks %}
-                                        {% set gap_length = 0.5 %}  <!-- Small gap between segments -->
+                                        {% set gap_length = 1.2 %}  <!-- Small gap between segments -->
                                         {% set adjusted_segment = segment_length - gap_length %}
                                         
                                         {% for i in range(total_subtasks) %}
@@ -53,8 +53,8 @@
                                             {% set offset = -(i * segment_length) %}
                                             
                                             <circle cx="16" cy="16" r="14" fill="none" 
-                                                    stroke="{{ '#22c55e' if is_completed else '#d1d5db' }}" 
-                                                    stroke-width="2" 
+                                                    stroke="{{ '#4ca154' if is_completed else '#d1d5db' }}" 
+                                                    stroke-width="3" 
                                                     stroke-dasharray="{{ adjusted_segment }} {{ circumference - adjusted_segment }}" 
                                                     stroke-dashoffset="{{ offset }}"
                                                     class="{{ 'opacity-90' if is_completed else 'opacity-40' }}"></circle>
@@ -63,7 +63,7 @@
                                     
                                     <!-- Center text showing progress -->
                                     <div class="absolute inset-0 flex items-center justify-center">
-                                        <span class="text-[8px] font-medium text-neutral-600 dark:text-neutral-300">
+                                        <span class="text-[8px] font-medium text-neutral-400 dark:text-neutral-500">
                                             {{ completed_subtasks }}/{{ total_subtasks }}
                                         </span>
                                     </div>

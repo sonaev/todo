@@ -13,15 +13,42 @@
             <!-- Checkbox -->
             {% set has_incomplete_subtasks = item.subtasks and item.subtasks|selectattr('completed', 'equalto', false)|list|length > 0 %}
             <form hx-post="/todos/{{ item.todo.id }}/toggle" hx-target="[data-todo-id='{{ item.todo.id }}']" hx-swap="outerHTML" class="pt-1">
-                <button type="submit" class="focus:outline-none {{ 'cursor-not-allowed opacity-50' if has_incomplete_subtasks and not item.todo.completed else '' }}" {{ 'disabled' if has_incomplete_subtasks and not item.todo.completed else '' }} title="{{ 'Complete all subtasks first' if has_incomplete_subtasks and not item.todo.completed else '' }}">
-                    {% if item.todo.completed %}
-                    <svg class="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                    </svg>
+                <button type="submit" class="focus:outline-none" {% if has_incomplete_subtasks and not item.todo.completed %}disabled title="Complete all subtasks first"{% endif %}>
+                    {% if item.subtasks and item.subtasks|length > 0 %}
+                        {% set total_subtasks = item.subtasks|length %}
+                        {% set completed_subtasks = item.subtasks|selectattr('completed')|list|length %}
+                        
+                        <div class="relative w-5 h-5">
+                            <svg class="w-5 h-5 transform -rotate-90" viewBox="0 0 32 32">
+                                {% set circumference = 87.96 %} <!-- 2 * π * 14 ≈ 87.96 -->
+                                {% set segment_length = circumference / total_subtasks %}
+                                {% set gap_size = 1.5 %}
+                                {% set adjusted_segment = segment_length - gap_size %}
+                                
+                                {% for i in range(total_subtasks) %}
+                                    {% set is_completed = item.subtasks[i].completed %}
+                                    {% set offset = -(i * segment_length) %}
+                                    
+                                    <circle cx="16" cy="16" r="14" fill="none" 
+                                            stroke="{{ '#4ca154' if is_completed else '#d1d5db' }}" 
+                                            stroke-width="3" 
+                                            stroke-dasharray="{{ adjusted_segment }} {{ circumference - adjusted_segment }}" 
+                                            stroke-dashoffset="{{ offset }}"
+                                            class="{{ 'opacity-90' if is_completed else 'opacity-40' }}"></circle>
+                                {% endfor %}
+                            </svg>
+                        </div>
                     {% else %}
-                    <svg class="w-5 h-5 {{ 'text-neutral-300 dark:text-neutral-600' if has_incomplete_subtasks else 'text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <circle cx="12" cy="12" r="10" stroke-width="2"></circle>
-                    </svg>
+                        <!-- No subtasks - show simple status icon -->
+                        {% if item.todo.completed %}
+                        <svg class="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                        </svg>
+                        {% else %}
+                        <svg class="w-5 h-5 text-neutral-400 hover:text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10" stroke-width="2"></circle>
+                        </svg>
+                        {% endif %}
                     {% endif %}
                 </button>
             </form>
