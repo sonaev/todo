@@ -168,7 +168,7 @@
                             <p class="text-neutral-600 dark:text-neutral-300 mt-1">{{ item.todo.description }}</p>
                             {% endif %}
                             <p class="text-xs text-neutral-400 dark:text-neutral-500 mt-1">
-                                Created: {{ item.todo.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                {{ item.todo.created_at.strftime('%d %B %Y at %H:%M') }}
                             </p>
                         </div>
                         
