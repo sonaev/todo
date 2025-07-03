@@ -451,11 +451,11 @@
             if (event.detail.xhr.responseURL && event.detail.xhr.responseURL.includes('/delete')) {
                 setTimeout(showEmptyStateIfNeeded, 100);
             }
-            // Re-initialize subtasks sortable after HTMX updates subtasks
-        if (event.detail.xhr.responseURL && event.detail.xhr.responseURL.includes('/subtasks')) {
-            setTimeout(initSubtasksSortable, 100);
-        }
-    });
+            // Re-initialize subtasks sortable after HTMX updates subtasks or todo edits
+            if (event.detail.xhr.responseURL && (event.detail.xhr.responseURL.includes('/subtasks') || event.detail.xhr.responseURL.includes('/todos/') && event.detail.xhr.responseURL.includes('/edit'))) {
+                setTimeout(initSubtasksSortable, 100);
+            }
+        });
 
     // Edit functions
     function editTodo(todoId) {
