@@ -13,6 +13,10 @@
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <style>
+        /* Smooth theme transition */
+        * {
+            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+        }
         .dragging {
             opacity: 0.5;
         }
@@ -80,7 +84,7 @@
         </div>
 
         <!-- Add New Todo Form -->
-        <div class="bg-white dark:bg-neutral-800 rounded-lg shadow-md p-6 mb-6">
+        <div class="bg-white border border-neutral-200 dark:border-neutral-700 dark:bg-neutral-800 rounded-lg shadow-sm p-6 mb-6">
             <form hx-post="/todos" hx-target="#todos-container" hx-swap="afterbegin" hx-on::after-request="this.reset(); hideEmptyState(); hideDescriptionField();" class="space-y-4">
                 <!-- Main input row -->
                 <div class="flex space-x-3">
@@ -113,7 +117,7 @@
         <!-- Todos List -->
         <div id="todos-container" class="space-y-4">
             {% if not todos_with_subtasks %}
-            <div id="empty-state" class="bg-white dark:bg-neutral-800 rounded-lg shadow-md p-8 text-center">
+            <div id="empty-state" class="bg-white dark:bg-neutral-800 rounded-lg shadow-sm p-8 text-center">
                 <div class="text-neutral-400 dark:text-neutral-500 mb-4">
                     <svg class="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
@@ -125,7 +129,7 @@
             {% endif %}
             
             {% for item in todos_with_subtasks %}
-            <div class="todo-item bg-white dark:bg-neutral-800 rounded-lg shadow-md" data-todo-id="{{ item.todo.id }}">
+            <div class="todo-item border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 rounded-lg shadow-sm" data-todo-id="{{ item.todo.id }}">
                 <!-- Todo Header -->
                 <div class="p-6 border-b border-neutral-200 dark:border-neutral-700">
                     <div class="flex items-start justify-between">

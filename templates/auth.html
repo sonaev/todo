@@ -10,10 +10,16 @@
             darkMode: 'media'
         }
     </script>
+    <style>
+        /* Smooth theme transition */
+        * {
+            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+        }
+    </style>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 </head>
 <body class="bg-neutral-100 dark:bg-neutral-900 min-h-screen flex items-center justify-center transition-colors p-2">
-    <div class="bg-white dark:bg-neutral-800 p-8 rounded-lg shadow-md w-full max-w-md">
+    <div class="bg-white border border-neutral-200 dark:border-neutral-700 dark:bg-neutral-800 p-8 rounded-lg shadow-sm w-full max-w-md">
         
         <h1 class="text-xl font-bold text-center text-neutral-800 dark:text-neutral-100 mb-6">Segmentum</h1>
         
