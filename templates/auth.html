@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Segmentum</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    
     <script>
         tailwind.config = {
             darkMode: 'media'
@@ -16,7 +17,6 @@
             transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
         }
     </style>
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 </head>
 <body class="bg-neutral-100 dark:bg-neutral-900 min-h-screen flex items-center justify-center transition-colors p-2">
     <div class="bg-white border border-neutral-200 dark:border-neutral-700 dark:bg-neutral-800 p-8 rounded-lg shadow-sm w-full max-w-md">
@@ -25,10 +25,34 @@
         
         <!-- Tabs -->
         <div class="flex mb-6 bg-neutral-100 dark:bg-neutral-700 rounded-lg p-1">
-            <button id="login-tab" class="flex-1 py-2 px-4 bg-white dark:bg-neutral-600 rounded-md text-sm font-medium text-neutral-700 dark:text-neutral-200 shadow-sm transition-all">
+            <button id="login-tab" class="flex-1 py-2 px-4 bg-white dark:bg-neutral-600 rounded-md text-sm font-medium text-neutral-700 dark:text-neutral-200 shadow-sm transition-all"
+                    _="on click
+                        remove .hidden from #login-form then
+                        add .hidden to #register-form then
+                        add .hidden to #forgot-password-form then
+                        add .bg-white .dark:bg-neutral-600 to me then
+                        add .shadow-sm to me then
+                        add .text-neutral-700 to me then
+                        remove .text-neutral-500 from me then
+                        remove .bg-white .dark:bg-neutral-600 from #register-tab then
+                        remove .shadow-sm from #register-tab then
+                        remove .text-neutral-700 from #register-tab then
+                        add .text-neutral-500 to #register-tab">
                 Вход
             </button>
-            <button id="register-tab" class="flex-1 py-2 px-4 text-sm font-medium rounded-md text-neutral-500 dark:text-neutral-300 transition-all">
+            <button id="register-tab" class="flex-1 py-2 px-4 text-sm font-medium rounded-md text-neutral-500 dark:text-neutral-300 transition-all"
+                    _="on click
+                        add .hidden to #login-form then
+                        remove .hidden from #register-form then
+                        add .hidden to #forgot-password-form then
+                        add .bg-white .dark:bg-neutral-600 to me then
+                        add .shadow-sm to me then
+                        add .text-neutral-700 to me then
+                        remove .text-neutral-500 from me then
+                        remove .bg-white .dark:bg-neutral-600 from #login-tab then
+                        remove .shadow-sm from #login-tab then
+                        remove .text-neutral-700 from #login-tab then
+                        add .text-neutral-500 to #login-tab">
                 Регистрация
             </button>
         </div>
@@ -77,7 +101,11 @@
             
             <!-- Forgot Password Link -->
             <div class="mt-4 text-center">
-                <button id="forgot-password-btn" class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm">
+                <button id="forgot-password-btn" class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm"
+                        _="on click
+                            add .hidden to #login-form
+                            add .hidden to #register-form
+                            remove .hidden from #forgot-password-form">
                     Забыли пароль?
                 </button>
             </div>
@@ -85,7 +113,13 @@
         
         <!-- Register Form -->
         <div id="register-form" class="register-form hidden">
-            <form method="post" action="/register" class="space-y-4">
+            <form method="post" action="/register" class="space-y-4"
+                  _="on submit
+                      if #register-password.value !== #register-password-confirm.value
+                          halt the event
+                          set #register-password-confirm.customValidity to 'Пароли не совпадают'
+                          call #register-password-confirm.reportValidity()
+                      end">
                 <div>
                     <label for="register-username" class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Имя пользователя</label>
                     <input type="text" id="register-username" name="username" required 
@@ -103,16 +137,21 @@
                 </div>
                 <div>
                     <label for="register-password" class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Пароль</label>
-                    <input type="password" id="register-password" name="password" required 
-                           class="w-full px-3 py-2 bg-neutral-100 dark:bg-neutral-700 dark:text-neutral-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <input type="password" id="register-password" name="password" required class="w-full px-3 py-2 bg-neutral-100 dark:bg-neutral-700 dark:text-neutral-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    _="on keyup
+                        call checkPasswordMatch()
+                       on change
+                        call checkPasswordMatch()">
                 </div>
                 <div class="pb-4">
                     <label for="register-password-confirm" class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Подтвердите пароль</label>
-                    <input type="password" id="register-password-confirm" name="password_confirm" required 
-                           class="w-full px-3 py-2 bg-neutral-100 dark:bg-neutral-700 dark:text-neutral-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <input type="password" id="register-password-confirm" name="password_confirm" required class="w-full px-3 py-2 bg-neutral-100 dark:bg-neutral-700 dark:text-neutral-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    _="on keyup
+                        call checkPasswordMatch()
+                       on change
+                        call checkPasswordMatch()">
                 </div>
-                <button type="submit" 
-                        class="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition duration-200 flex items-center justify-center">
+                <button type="submit" id="register-submit-btn" class="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition duration-200 flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
                     Зарегистрироваться
                 </button>
             </form>
@@ -136,72 +175,35 @@
             </form>
             
             <div class="mt-4 text-center">
-                <button id="back-to-login-btn" class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm">
+                <button id="back-to-login-btn" class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm"
+                        _="on click
+                            remove .hidden from #login-form
+                            add .hidden to #register-form
+                            add .hidden to #forgot-password-form">
                     ← Вернуться к входу
                 </button>
             </div>
         </div>
     </div>
-    
-    <script>
-        // Tab switching
-        const loginTab = document.getElementById('login-tab');
-        const registerTab = document.getElementById('register-tab');
-        const loginForm = document.getElementById('login-form');
-        const registerForm = document.getElementById('register-form');
-        const forgotPasswordForm = document.getElementById('forgot-password-form');
-        const forgotPasswordBtn = document.getElementById('forgot-password-btn');
-        const backToLoginBtn = document.getElementById('back-to-login-btn');
-        
-        function showLoginForm() {
-            loginForm.classList.remove('hidden');
-            registerForm.classList.add('hidden');
-            forgotPasswordForm.classList.add('hidden');
-            
-            loginTab.classList.add('bg-white', 'dark:bg-neutral-600', 'text-neutral-700', 'dark:text-neutral-200', 'shadow-sm');
-            loginTab.classList.remove('text-neutral-500', 'dark:text-neutral-300');
-            registerTab.classList.remove('bg-white', 'dark:bg-neutral-600', 'text-neutral-700', 'dark:text-neutral-200', 'shadow-sm');
-            registerTab.classList.add('text-neutral-500', 'dark:text-neutral-300');
-        }
-        
-        function showRegisterForm() {
-            loginForm.classList.add('hidden');
-            registerForm.classList.remove('hidden');
-            forgotPasswordForm.classList.add('hidden');
-            
-            registerTab.classList.add('bg-white', 'dark:bg-neutral-600', 'text-neutral-700', 'dark:text-neutral-200', 'shadow-sm');
-            registerTab.classList.remove('text-neutral-500', 'dark:text-neutral-300');
-            loginTab.classList.remove('bg-white', 'dark:bg-neutral-600', 'text-neutral-700', 'dark:text-neutral-200', 'shadow-sm');
-            loginTab.classList.add('text-neutral-500', 'dark:text-neutral-300');
-        }
-        
-        function showForgotPasswordForm() {
-            loginForm.classList.add('hidden');
-            registerForm.classList.add('hidden');
-            forgotPasswordForm.classList.remove('hidden');
-        }
-        
-        loginTab.addEventListener('click', showLoginForm);
-        registerTab.addEventListener('click', showRegisterForm);
-        forgotPasswordBtn.addEventListener('click', showForgotPasswordForm);
-        backToLoginBtn.addEventListener('click', showLoginForm);
-        
-        // Password confirmation validation
-        const registerPassword = document.getElementById('register-password');
-        const registerPasswordConfirm = document.getElementById('register-password-confirm');
-        
-        function validatePasswords() {
-            if (registerPassword.value !== registerPasswordConfirm.value) {
-                registerPasswordConfirm.setCustomValidity('Пароли не совпадают');
-            } else {
-                registerPasswordConfirm.setCustomValidity('');
-            }
-        }
-        
-        registerPassword.addEventListener('change', validatePasswords);
-        registerPasswordConfirm.addEventListener('keyup', validatePasswords);
 
-
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://unpkg.com/hyperscript.org@0.9.12"></script>
+    <script type="text/hyperscript">
+        def checkPasswordMatch()
+            get #register-password's value
+            get #register-password-confirm's value
+            set button to #register-submit-btn
+            
+            if #register-password.value === #register-password-confirm.value and #register-password.value !== ''
+                remove @disabled from button
+                set #register-password-confirm.customValidity to ''
+            else
+                add @disabled to button
+                if #register-password-confirm.value !== ''
+                    set #register-password-confirm.customValidity to 'Пароли не совпадают'
+                end
+            end
+        end
     </script>
 </body>
 </html>
