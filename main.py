@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import SQLModel, Field, select
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from typing import Optional, Annotated
@@ -16,14 +17,16 @@ from email.mime.multipart import MIMEMultipart
 import os
 
 # Database Models
-class User(SQLModel, table=True):
-    id: Optional[str] = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+class UserBase(SQLModel):
     username: str = Field(unique=True, index=True)
     email: str = Field(unique=True, index=True)
-    password_hash: str
     telegram_username: Optional[str] = Field(default=None, unique=True, index=True)
+    is_active: bool = True
+
+class User(UserBase, table=True):
+    id: Optional[str] = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    password_hash: str
     created_at: datetime = Field(default_factory=datetime.now)
-    is_active: bool = Field(default=True)
 
 class UserSession(SQLModel, table=True):
     id: Optional[str] = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
@@ -43,31 +46,49 @@ class PasswordReset(SQLModel, table=True):
 class TodoBase(SQLModel):
     title: str
     description: Optional[str] = None
+
+class Todo(TodoBase, table=True):
+    id: Optional[str] = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
     completed: bool = False
     order_index: int = 0
     created_at: datetime = Field(default_factory=datetime.now)
     user_id: str = Field(foreign_key="user.id")
 
-class Todo(TodoBase, table=True):
-    id: Optional[str] = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
-
 class SubtaskBase(SQLModel):
     title: str
-    completed: bool = False
-    order_index: int = 0
-    todo_id: str = Field(foreign_key="todo.id")
-    created_at: datetime = Field(default_factory=datetime.now)
 
 class Subtask(SubtaskBase, table=True):
     id: Optional[str] = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    completed: bool = False
+    order_index: int = 0
+    created_at: datetime = Field(default_factory=datetime.now)
+    todo_id: str = Field(foreign_key="todo.id")
 
 # Async database setup
-engine = create_async_engine("sqlite+aiosqlite:///todos.db")
+engine = create_async_engine(
+    "sqlite+aiosqlite:///todos.db",
+    connect_args={
+        "check_same_thread": False,
+        "isolation_level": None,
+    },
+    echo=False  # включите True для отладки SQL запросов
+    )
+
 async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+# Функция для включения WAL режима
+async def enable_wal_mode():
+    async with engine.begin() as conn:
+        await conn.execute(text("PRAGMA journal_mode=WAL;"))
+        await conn.execute(text("PRAGMA synchronous=NORMAL;"))
+        await conn.execute(text("PRAGMA cache_size=1000;"))
+        await conn.execute(text("PRAGMA temp_store=MEMORY;"))
 
 async def create_db_and_tables():
     async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
+    # Включаем foreign keys и WAL режим
+    await enable_wal_mode()
 
 # Password hashing
 def hash_password(password: str) -> str:
@@ -705,13 +726,15 @@ async def delete_todo(request: Request, todo_id: str, current_user: Annotated[Us
         if not todo:
             raise HTTPException(status_code=404, detail="Todo not found")
         
-        # Delete subtasks first
-        result = await session.execute(select(Subtask).where(Subtask.todo_id == todo_id))
-        subtasks = result.scalars().all()
+        # Delete all subtasks first
+        subtask_result = await session.execute(
+            select(Subtask).where(Subtask.todo_id == todo_id)
+        )
+        subtasks = subtask_result.scalars().all()
         for subtask in subtasks:
             await session.delete(subtask)
         
-        # Delete todo
+        # Delete the todo
         await session.delete(todo)
         await session.commit()
     
